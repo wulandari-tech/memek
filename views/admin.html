@@ -2,35 +2,80 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Dashboard Admin - AwanBrayy">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard Admin</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-<link href="/css/bootstrap.min.css" rel="stylesheet">
-<link href="/css/tailwind.min.css" rel="stylesheet">
-<link href="/css/styles.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script> <!-- Socket.IO Client -->
 </head>
-<body class="bg-gray-100">
-  <div class="container">
-    <div class="admin-dashboard">
-      <div class="panel">
-        <div class="panel-header">Dashboard Admin</div>
-        <div class="panel-content">
-          <button id="exportJson" class="btn btn-primary mb-3">Export JSON</button>
-          <button id="exportCsv" class="btn btn-primary mb-3">Export CSV</button>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-header">Daftar Pesan</div>
-        <div class="panel-content">
-          <table class="table" id="messagesTable">
-            <!-- Table content will be populated via admin.js -->
-          </table>
-        </div>
-      </div>
-    </div>
+<body class="bg-gray-100 min-h-screen p-4">
+  <h1 class="text-2xl font-bold mb-4">Dashboard Admin</h1>
+  <div class="flex gap-2 mb-4">
+    <button id="exportBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Export Pesan</button>
+    <button id="refreshBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Refresh</button>
   </div>
-  <script src="/socket.io/socket.io.js"></script>
-<script src="/js/admin.js"></script>
+
+  <ul id="messageList" class="space-y-2">
+    <!-- Pesan akan dimunculkan disini -->
+  </ul>
+  <script>
+    const socket = io();
+    const messageList = document.getElementById('messageList');
+    const exportBtn = document.getElementById('exportBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    // Function menampilkan pesan
+    function appendMessage(message, index) {
+      const li = document.createElement('li');
+      li.className = "bg-white p-4 rounded shadow relative";
+
+      li.innerHTML = `
+        <p class="text-gray-800">${message.message}</p>
+        <small class="text-gray-500 block mt-2">${new Date(message.time).toLocaleString()}</small>
+        <button onclick="deleteMessage(${index})" class="absolute top-2 right-2 text-red-500 hover:text-red-700">Hapus</button>
+      `;
+
+      messageList.appendChild(li);
+    }
+
+    // Fetch semua pesan awal
+    function fetchMessages() {
+      fetch('/api/messages')
+        .then(res => res.json())
+        .then(data => {
+          messageList.innerHTML = ''; // Clear list
+          data.forEach((msg, idx) => appendMessage(msg, idx));
+        });
+    }
+
+    // Hapus pesan
+    function deleteMessage(index) {
+      if (confirm('Yakin mau hapus pesan ini?')) {
+        fetch(`/api/delete/${index}`, { method: 'DELETE' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              fetchMessages(); // Refresh pesan
+              alert('Pesan berhasil dihapus!');
+            }
+          });
+      }
+    }
+
+    // Event listener
+    exportBtn.addEventListener('click', () => {
+      window.location.href = '/api/export';
+    });
+
+    refreshBtn.addEventListener('click', fetchMessages);
+
+    // Socket event: Pesan baru masuk
+    socket.on('messageToAdmin', (message) => {
+      appendMessage(message, messageList.children.length);
+    });
+
+    // Fetch pesan saat pertama kali
+    fetchMessages();
+  </script>
+
 </body>
 </html>
