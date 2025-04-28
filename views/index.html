@@ -2,30 +2,75 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Kirim pesan dengan kode unik untuk admin!">
-  <meta name="author" content="Awanberlian">
-  <title>Kirim Pesan - Request</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kirim Request Anda</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
  <link href="/css/bootstrap.min.css" rel="stylesheet">
 <link href="/css/tailwind.min.css" rel="stylesheet">
 <link href="/css/styles.css" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script> <!-- Socket.IO Client -->
 </head>
-<body>
-  <div class="container">
-    <h1 class="text-3xl font-bold text-center mt-5">Kirim Pesan</h1>
-    <form id="sendForm" class="mt-5">
-      <div class="form-group">
-        <label for="message">Pesan:</label>
-        <textarea id="message" class="w-full h-32" placeholder="Tulis pesan di sini..." required></textarea>
-      </div>
-      <div class="form-group">
-        <label for="code">Kode (Opsional):</label>
-        <input type="text" id="code" class="w-full" placeholder="Kode unik (Opsional)">
-      </div>
-      <button type="submit" class="w-full bg-blue-500 text-white py-2 mt-4">Kirim Pesan</button>
+<body class="bg-gray-50 flex flex-col items-center justify-center min-h-screen p-4">
+
+  <div class="w-full max-w-md bg-white p-6 rounded shadow-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">Kirim Pesan Anonim</h1>
+
+    <form id="messageForm" class="space-y-4">
+      <textarea id="messageInput" placeholder="Tulis pesanmu disini..." class="w-full border rounded p-2" rows="4" required></textarea>
+      <input id="codeInput" type="text" placeholder="Kode Khusus (opsional)" class="w-full border rounded p-2">
+      <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Kirim Pesan</button>
     </form>
+
+    <div id="toast" class="hidden mt-4 p-2 bg-green-500 text-white text-center rounded">Pesan berhasil dikirim!</div>
   </div>
-<script src="/js/admin.js"></script>
+
+  <!-- JavaScript langsung -->
+  <script>
+    const socket = io();
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const codeInput = document.getElementById('codeInput');
+    const toast = document.getElementById('toast');
+
+    messageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = messageInput.value.trim();
+      const code = codeInput.value.trim();
+
+      if (message === '') {
+        alert('Pesan tidak boleh kosong!');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, code })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          messageInput.value = '';
+          codeInput.value = '';
+          showToast('Pesan berhasil dikirim!');
+        } else {
+          alert('Gagal mengirim pesan.');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        alert('Terjadi kesalahan!');
+      }
+    });
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
+  </script>
+
 </body>
 </html>
