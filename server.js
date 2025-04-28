@@ -5,9 +5,9 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require('socket.io');
 const io = new Server(server);
-
 const bodyParser = require('body-parser');
 const path = require('path');
+const os = require('os');
 
 const PORT = process.env.PORT || 3000;
 const ADMIN_USERNAME = 'admin';
@@ -17,7 +17,16 @@ let messages = [];
 
 // Load messages if exist
 if (fs.existsSync('messages.json')) {
-  messages = JSON.parse(fs.readFileSync('messages.json'));
+  try {
+    messages = JSON.parse(fs.readFileSync('messages.json'));
+  } catch (error) {
+    console.error('Error parsing messages.json:', error);
+    messages = [];
+  }
+} else {
+  // Jika belum ada messages.json, buat file kosong
+  fs.writeFileSync('messages.json', JSON.stringify([], null, 2));
+  console.log('messages.json dibuat baru.');
 }
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -54,46 +63,41 @@ app.post('/api/send', (req, res) => {
   const { message, code } = req.body;
   const newMessage = { message, code, time: new Date().toISOString() };
   messages.push(newMessage);
+  
+  // Simpan ke file
   fs.writeFileSync('messages.json', JSON.stringify(messages, null, 2));
+
+  // Kirim ke admin realtime
   io.emit('messageToAdmin', newMessage);
+
   res.json({ success: true });
 });
 
-// API ambil semua pesan
-app.get('/api/messages', (req, res) => {
-  res.json(messages);
+// API ambil semua pesan (buat history chat)
+app.get('/api/history', (req, res) => {
+  res.json({ success: true, messages });
 });
 
 // API hapus pesan
 app.delete('/api/delete/:index', (req, res) => {
   const index = parseInt(req.params.index);
   if (!isNaN(index) && index >= 0 && index < messages.length) {
-    const deletedMessage = messages.splice(index, 1)[0];
+    messages.splice(index, 1);
+
+    // Update file
     fs.writeFileSync('messages.json', JSON.stringify(messages, null, 2));
-    io.emit('deleteMessage', index); // Emit event delete
+
     res.json({ success: true });
   } else {
     res.status(400).json({ success: false, message: 'Index invalid' });
   }
 });
 
-// API export semua pesan (JSON)
-app.get('/api/export/json', (req, res) => {
+// API export semua pesan
+app.get('/api/export', (req, res) => {
   res.setHeader('Content-disposition', 'attachment; filename=messages.json');
   res.setHeader('Content-type', 'application/json');
   res.send(JSON.stringify(messages, null, 2));
-});
-
-// API export semua pesan (CSV)
-app.get('/api/export/csv', (req, res) => {
-  let csv = 'Message,Code,Time\n';
-  messages.forEach(msg => {
-    csv += `"${msg.message.replace(/"/g, '""')}", "${msg.code}", "${msg.time}"\n`;
-  });
-
-  res.setHeader('Content-disposition', 'attachment; filename=messages.csv');
-  res.set('Content-Type', 'text/csv');
-  res.status(200).send(csv);
 });
 
 // Socket.IO
@@ -101,6 +105,22 @@ io.on('connection', (socket) => {
   console.log('User connected');
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// Fungsi untuk mendapatkan IP Address lokal
+function getLocalIp() {
+  const interfaces = os.networkInterfaces();
+  for (const name in interfaces) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+// Jalankan server
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on:`);
+  console.log(`- http://localhost:${PORT}`);
+  console.log(`- http://${getLocalIp()}:${PORT}`);
 });
