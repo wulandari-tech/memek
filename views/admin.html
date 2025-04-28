@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard Admin</title>
   <link href="/css/style.css" rel="stylesheet">
-  <script src="/socket.io/socket.io.js"></script> <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4">
   <h1 class="text-2xl font-bold mb-4">Dashboard Admin</h1>
@@ -14,36 +14,36 @@
     <button id="refreshBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Refresh</button>
   </div>
 
-  <ul id="messageList" class="space-y-2">
-    <!-- Pesan akan dimunculkan disini -->
-  </ul>
+  <ul id="messageList" class="space-y-2"></ul>
+
   <script>
     const socket = io();
     const messageList = document.getElementById('messageList');
     const exportBtn = document.getElementById('exportBtn');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // Function menampilkan pesan
+    // Menampilkan pesan ke dashboard
     function appendMessage(message, index) {
       const li = document.createElement('li');
       li.className = "bg-white p-4 rounded shadow relative";
-
       li.innerHTML = `
         <p class="text-gray-800">${message.message}</p>
         <small class="text-gray-500 block mt-2">${new Date(message.time).toLocaleString()}</small>
         <button onclick="deleteMessage(${index})" class="absolute top-2 right-2 text-red-500 hover:text-red-700">Hapus</button>
       `;
-
       messageList.appendChild(li);
     }
 
-    // Fetch semua pesan awal
+    // Fetch semua pesan
     function fetchMessages() {
       fetch('/api/messages')
-        .then(res => res.text())
+        .then(res => res.json()) // <<<<<< HARUS .json() bukan .text()
         .then(data => {
           messageList.innerHTML = ''; // Clear list
           data.forEach((msg, idx) => appendMessage(msg, idx));
+        })
+        .catch(err => {
+          console.error('Gagal ambil pesan:', err);
         });
     }
 
@@ -51,31 +51,36 @@
     function deleteMessage(index) {
       if (confirm('Yakin mau hapus pesan ini?')) {
         fetch(`/api/delete/${index}`, { method: 'DELETE' })
-          .then(res => res.text())
+          .then(res => res.json())
           .then(data => {
             if (data.success) {
-              fetchMessages(); // Refresh pesan
+              fetchMessages();
               alert('Pesan berhasil dihapus!');
+            } else {
+              alert('Gagal hapus pesan.');
             }
+          })
+          .catch(err => {
+            console.error('Gagal hapus pesan:', err);
           });
       }
     }
 
-    // Event listener
+    // Event tombol export
     exportBtn.addEventListener('click', () => {
       window.location.href = '/api/export';
     });
 
+    // Event tombol refresh
     refreshBtn.addEventListener('click', fetchMessages);
 
-    // Socket event: Pesan baru masuk
+    // Terima pesan baru dari Socket.IO
     socket.on('messageToAdmin', (message) => {
       appendMessage(message, messageList.children.length);
     });
 
-    // Fetch pesan saat pertama kali
+    // Pertama kali load pesan
     fetchMessages();
   </script>
-
 </body>
 </html>
