@@ -1,4 +1,4 @@
-const socket = io();
+// public/js/main.js
 
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('sendForm');
@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
     const message = messageInput.value.trim();
     const code = codeInput.value.trim();
 
@@ -23,32 +24,28 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const result = await response.json();
+
       if (result.success) {
         showToast('Pesan berhasil dikirim!', 'success');
         form.reset();
       } else {
-        showToast('Gagal mengirim pesan.', 'error');
+        showToast('Gagal mengirim pesan!', 'error');
       }
-    } catch (err) {
-      showToast('Terjadi kesalahan.', 'error');
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Terjadi kesalahan server!', 'error');
     }
   });
 });
 
-function showToast(text, type = 'success') {
+// Simple Toast
+function showToast(message, type = 'success') {
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = text;
+  toast.className = `fixed top-5 right-5 bg-${type === 'success' ? 'green' : 'red'}-500 text-white px-4 py-2 rounded shadow-lg z-50`;
+  toast.innerText = message;
   document.body.appendChild(toast);
-
+  
   setTimeout(() => {
-    toast.classList.add('show');
-  }, 100);
-
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => {
-      toast.remove();
-    }, 300);
+    toast.remove();
   }, 3000);
 }
